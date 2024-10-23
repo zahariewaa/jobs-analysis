@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
-from scrapper import scrape_jobs  # Import the scrape_jobs function from scrapper.py
 import os
 import datetime
+from scrapper import scrape_jobs  # Import the scrape_jobs function from scrapper.py
 
 # Function to handle Bulgarian dates and format as YYYY-MM-DD
 def parse_bulgarian_date(date_str):
@@ -61,19 +61,56 @@ def add_filters(data):
         data = data[data['Job Title'].str.contains(job_title_filter, case=False)]
     if company_filter != "All":
         data = data[data['Company Name'] == company_filter]
-# TO-DO
-#    if start_date_filter and end_date_filter:
-#        # Filter using the parsed datetime values for the date range
-#        data = data[(data['Posted Date'] >= pd.to_datetime(start_date_filter)) & 
-#                    (data['Posted Date'] <= pd.to_datetime(end_date_filter))]
     if tech_stack_filter:
         data = data[data['Tech Stack'].apply(lambda x: any(stack in x for stack in tech_stack_filter))]
     
     return data
 
+# Function to scrape jobs for a specific category
+def scrape_jobs_for_category(selected_category, selected_csv):
+    job_categories = {
+        "Backend": "https://dev.bg/company/jobs/back-end-development/sofiya/?_job_location=sofiya&_paged=",
+        "Frontend": "https://dev.bg/company/jobs/front-end-development/sofiya/?_job_location=sofiya&_paged=",
+        "Fullstack": "https://dev.bg/company/jobs/full-stack-development/sofiya/?_job_location=sofiya&_paged=",
+        "Pm_ba": "https://dev.bg/company/jobs/pm-ba-and-more/sofiya/?_job_location=sofiya&_paged=",
+        "Quality_assurance": "https://dev.bg/company/jobs/quality-assurance/sofiya/?_job_location=sofiya&_paged=",
+        "Infrastructure": "https://dev.bg/company/jobs/operations/sofiya/?_job_location=sofiya&_paged=",
+        "Data_science": "https://dev.bg/company/jobs/data-science/sofiya/?_job_location=sofiya&_paged=",
+        "Ui_ux_arts": "https://dev.bg/company/jobs/ui-ux-and-arts/sofiya/?_job_location=sofiya&_paged=",
+        "Technical_support": "https://dev.bg/company/jobs/technical-support/sofiya/?_job_location=sofiya&_paged="
+    }
+
+    # Scrape job data for the selected category
+    url = job_categories[selected_category]
+    scrape_jobs(url, selected_csv)
+
+# Function to scrape all categories on startup or restart
+def scrape_and_create_csvs():
+    job_categories = {
+        "backend": "https://dev.bg/company/jobs/back-end-development/sofiya/?_job_location=sofiya&_paged=",
+        "frontend": "https://dev.bg/company/jobs/front-end-development/sofiya/?_job_location=sofiya&_paged=",
+        "fullstack": "https://dev.bg/company/jobs/full-stack-development/sofiya/?_job_location=sofiya&_paged=",
+        "pm_ba": "https://dev.bg/company/jobs/pm-ba-and-more/sofiya/?_job_location=sofiya&_paged=",
+        "quality_assurance": "https://dev.bg/company/jobs/quality-assurance/sofiya/?_job_location=sofiya&_paged=",
+        "infrastructure": "https://dev.bg/company/jobs/operations/sofiya/?_job_location=sofiya&_paged=",
+        "data_science": "https://dev.bg/company/jobs/data-science/sofiya/?_job_location=sofiya&_paged=",
+        "ui_ux_arts": "https://dev.bg/company/jobs/ui-ux-and-arts/sofiya/?_job_location=sofiya&_paged=",
+        "technical_support": "https://dev.bg/company/jobs/technical-support/sofiya/?_job_location=sofiya&_paged="
+    }
+
+    # Scrape jobs for all categories
+    for category, url in job_categories.items():
+        csv_file = f'{category}_jobs.csv'
+        scrape_jobs(url, csv_file)
+
 # Main app function
 def main():
     st.title("Job Scraping Dashboard")
+
+    # Check if CSV files exist, and run the scraper if not
+    if not any(f.endswith('_jobs.csv') for f in os.listdir('.')):
+        st.write("No CSV files found. Scraping data on first startup...")
+        scrape_and_create_csvs()
 
     # List all available CSV files in the current directory
     csv_files = [f for f in os.listdir('.') if f.endswith('_jobs.csv')]
@@ -81,17 +118,15 @@ def main():
 
     # Dropdown menu to select a job category
     selected_category = st.sidebar.selectbox("Select Job Category", list(job_categories.keys()))
-    
+
     # Load the corresponding CSV file
     selected_csv = job_categories[selected_category]
     data = load_data(selected_csv)
 
-    # Button to scrape data
+    # Button to scrape data for the selected category
     if st.button("Scrape New Job Data"):
-        st.write(f"Scraping job data for {selected_category.lower()}, please wait...")
-        scrape_jobs(f"https://dev.bg/company/jobs/{selected_category.lower()}/sofiya/?_job_location=sofiya&_paged=", selected_csv)
-        st.write("Scraping completed! Reloading data...")
-        data = load_data(selected_csv)  # Reload the data after scraping
+        scrape_jobs_for_category(selected_category, selected_csv)
+        data = load_data(selected_csv)  # Reload the data after scrapping
     
     # Apply filters
     filtered_data = add_filters(data)
@@ -134,7 +169,6 @@ def main():
 
             # Display the Plotly figure
             st.plotly_chart(fig)
-
 
         # Pie chart: Tech Stack distribution (limit to top N tech stacks)
         st.subheader(f"Top Tech Stack Distribution in {selected_category}")
