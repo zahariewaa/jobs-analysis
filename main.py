@@ -5,6 +5,10 @@ import plotly.express as px
 import os
 import datetime
 from scrapper import scrape_jobs  # Import the scrape_jobs function from scrapper.py
+from theme import apply_theme  # Import the theme function
+
+# Apply the theme and get the selected option
+theme_option = apply_theme()
 
 # Function to handle Bulgarian dates and format as YYYY-MM-DD
 def parse_bulgarian_date(date_str):
@@ -61,6 +65,10 @@ def add_filters(data):
         data = data[data['Job Title'].str.contains(job_title_filter, case=False)]
     if company_filter != "All":
         data = data[data['Company Name'] == company_filter]
+    if start_date_filter and end_date_filter:
+        # Filter using the parsed datetime values for the date range
+        data['Posted Date'] = pd.to_datetime(data['Posted Date'], errors='coerce').dt.date
+        data = data[(data['Posted Date'] >= start_date_filter) & (data['Posted Date'] <= end_date_filter)]
     if tech_stack_filter:
         data = data[data['Tech Stack'].apply(lambda x: any(stack in x for stack in tech_stack_filter))]
     
@@ -159,12 +167,50 @@ def main():
                 text=job_counts.values  # Add job counts as text on the bars
             )
 
+            # Set custom colors based on a condition
+            colors = ['#7C5065' if val > 50 else '#895870' if val > 45 else '#955F7A' if val > 40 else '#A06A84' if val > 35 else '#A7768E' if val > 30 else '#AF8398' if val > 25 else '#B78FA2' if val > 20 else '#BF9BAC' if val > 15 else '#C7A8B6' if val > 10 else '#CFB4C0' if val > 5 else '#D7C1CB' for val in job_counts.values]
+            fig.update_traces(marker_color=colors)
+
             # Customize the layout to place the text inside the bars
             fig.update_traces(texttemplate='%{text}', textposition='auto')
             fig.update_layout(
                 xaxis_tickangle=-45,  # Rotate the x-axis labels
                 height=500,           # Adjust height of the chart
                 title=f"Top Companies by Job Offers in {selected_category}",
+            )
+
+            # Display the Plotly figure
+            st.plotly_chart(fig)
+
+        # Bar chart: Number of job titles per category (limit to top N job titles)
+        st.subheader(f"Top Job Titles by Job Offers in {selected_category}")
+
+        # Limit to top N job titles, e.g., top 10
+        job_titles_counts = filtered_data['Job Title'].value_counts().nlargest(top_n)
+
+        # Check if job_titles_counts is empty
+        if job_titles_counts.empty:
+            st.write(f"No job titles data available for {selected_category}.")
+        else:
+            # Create the interactive Plotly bar chart
+            fig = px.bar(
+                job_titles_counts,
+                x=job_titles_counts.index,
+                y=job_titles_counts.values,
+                labels={'x': 'Job Title', 'y': 'Number of Jobs'},
+                text=job_titles_counts.values  # Add job counts as text on the bars
+            )
+
+            # Set custom colors based on a condition
+            colors = ['#5A824A' if val > 50 else '#638E52' if val > 45 else '#6C9B59' if val > 40 else '#77A664' if val > 35 else '#83AD71' if val > 30 else '#8EB57D' if val > 25 else '#99BC8A' if val > 20 else '#A4C397' if val > 15 else '#AFCBA4' if val > 10 else '#BAD2B1' if val > 5 else '#C5DABE' for val in job_titles_counts.values]
+            fig.update_traces(marker_color=colors)
+
+            # Customize the layout to place the text inside the bars
+            fig.update_traces(texttemplate='%{text}', textposition='auto')
+            fig.update_layout(
+                xaxis_tickangle=-45,  # Rotate the x-axis labels
+                height=500,           # Adjust height of the chart
+                title=f"Top Job Titles by Job Offers in {selected_category}",
             )
 
             # Display the Plotly figure
@@ -180,7 +226,11 @@ def main():
         if tech_counts.empty:
             st.write(f"No tech stack data available for {selected_category}.")
         else:
+            # Predefined list of colors
+            # colors = ['#1098F7', '#9955B4', '#23E0E7', '#D9596C', '#71C544','#FFA400', '#4D6CFA', '#6A66A3', '#E6374C', '#F291B2']
+            # Plot the pie chart with predefined colors
             fig, ax = plt.subplots()
+            # ax.pie(tech_counts, labels=tech_counts.index, autopct='%1.1f%%', startangle=30, colors=colors)
             ax.pie(tech_counts, labels=tech_counts.index, autopct='%1.1f%%', startangle=30)
             ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
 
