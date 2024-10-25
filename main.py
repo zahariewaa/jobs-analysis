@@ -5,6 +5,10 @@ import plotly.express as px
 import os
 import datetime
 from scrapper import scrape_jobs  # Import the scrape_jobs function from scrapper.py
+from theme import apply_theme  # Import the theme function
+
+# Apply the theme and get the selected option
+theme_option = apply_theme()
 
 # Function to handle Bulgarian dates and format as YYYY-MM-DD
 def parse_bulgarian_date(date_str):
